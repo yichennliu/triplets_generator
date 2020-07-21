@@ -1,61 +1,60 @@
-import nltk
-from nltk.corpus import wordnet
-from nltk import FreqDist
-from collections import defaultdict
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 import csv
 import sys
+from collections import defaultdict
 
-def extract_node(infile, outfile):
-    ent = []
-    with open(outfile, 'wt') as out:
-        with open(infile, 'r') as input:
-            for line in input:
-                line = line.split(',')
-                source = line[0]
-                target = line[2]
-                ent.append(source)
-                ent.append(target)
-            new_list = [(elm, str(index)) for index, elm in enumerate(ent)]
-            header = ['Id', 'Label']
-            writer = csv.writer(out, delimiter=',')
-            writer.writerow(i for i in header)
-            for tup in new_list:
-                data =[]
-                data.append(tup[1])
-                data.append(tup[0])
+input_file = sys.argv[1]
+output_node_file = sys.argv[2]
+output_edge_file = sys.argv[3]
+
+
+def extract_node(outfile, gephi_dict):
+    header = ['Id', 'Label']
+    with open(outfile, 'w') as output:
+        writer = csv.writer(output, delimiter=',')
+        writer.writerow(i for i in header)
+        for ent in gephi_dict:
+            for id, v in gephi_dict[ent].items():
+                data = []
+                data.append(id)
+                data.append(ent)
                 writer.writerow(d for d in data)
 
-ent =[]
-new_dict ={}
-with open("/home/yibsimo/PycharmProjects/Rokin_Dev/data/preprocessed/quantum_titles-out.csv", 'r') as input:
+
+def extract_edge(outfile, src_tgt_rel, gephi_dict):
+    with open(outfile, 'w') as output:
+        writer = csv.writer(output, delimiter=',')
+        header = ['Source', 'Target', 'Type', 'Relation']
+        writer.writerow(i for i in header)
+
+        for (src, tgt), rel in src_tgt_rel.items():
+            for src_id, _ in gephi_dict[src].items():
+                for tgt_id, _ in gephi_dict[tgt].items():
+                    data = []
+                    data.append(src_id)
+                    data.append(tgt_id)
+                    data.append("Directed")
+                    data.append(rel)
+                    writer.writerow(d for d in data)
+
+
+ent_freq = defaultdict(int)
+gephi_dict = defaultdict(lambda: defaultdict(int))
+src_tgt_rel = defaultdict(str)
+
+with open(input_file, 'r') as input:
     for line in input:
         line = line.split(',')
         source = line[0]
         target = line[2]
-        ent.append(source)
-        ent.append(target)
-        new_list = [(elm, str(index)) for index, elm in enumerate(ent)]
-        for tup in new_list:
-            new_dict[tup[0]] = tup[1]
+        relation = line[1]
+        ent_freq[source] += 1
+        ent_freq[target] += 1
+        src_tgt_rel[(source, target)] = relation
 
-def extract_edge(infile, outfile):
+    for index, (elm, freq) in enumerate(ent_freq.items()):
+        gephi_dict[elm][str(index)] += 1
 
-    with open(outfile, 'wt') as out:
-        with open(infile, 'r') as input:
-            writer = csv.writer(out, delimiter=',')
-            header = ['Source', 'Target', 'Type', 'Relation']
-            writer.writerow(i for i in header)
-
-            for line in input:
-                data = []
-                line = line.split(',')
-                source = line[0]
-                target = line[2]
-                relation = line[1]
-                data.append(new_dict[source])
-                data.append(new_dict[target])
-                data.append("Directed")
-                data.append(relation)
-                writer.writerow(d for d in data)
-
-extract_edge("/home/yibsimo/PycharmProjects/Rokin_Dev/data/preprocessed/quantum_titles-out.csv", "qu_edge.csv")
+    extract_node(output_node_file, gephi_dict)
+    extract_edge(output_edge_file, src_tgt_rel, gephi_dict)

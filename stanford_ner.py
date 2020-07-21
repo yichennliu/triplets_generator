@@ -6,7 +6,7 @@ from nltk import sent_tokenize
 
 corenlp = StanfordCoreNLP('http://localhost:9000')
 corenlp_properties = {
-    'annotators': 'tokenize, ner',
+    'annotators': 'tokenize, lemma, ner, parse',
     'outputFormat': 'json'
 }
 
@@ -22,7 +22,7 @@ def get_tagged_from_server(input_text):
 
 ner_to_dict = {}
 
-with open("/home/yibsimo/PycharmProjects/knowledge_graph_from_unstructured_text-master/data/input/quantum_titles", "r") as file:
+with open("/home/yibsimo/PycharmProjects/Rokin_Dev/data/raw/quantum_triplets_lower.csv", "r") as file:
     text = str(file.read())
     sentences = sent_tokenize(text)
     for s in sentences:
@@ -32,10 +32,11 @@ with open("/home/yibsimo/PycharmProjects/knowledge_graph_from_unstructured_text-
             ner_to_dict[tup[0]] = tup[1]
 
 output_path = "./data/output/"
-ner_pickles_op = output_path + "ner/"
 
-op_pickle_filename = ner_pickles_op + "named_entity_quantum" + ".pickle"
+op_pickle_filename = output_path + "named_entity_quantum" + ".pickle"
 with open(op_pickle_filename,"wb") as f:
     pickle.dump(ner_to_dict, f)
+
+
 
 

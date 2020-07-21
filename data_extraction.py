@@ -1,19 +1,15 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import sys
-import ijson
-import re
-import shutil
 import random
+import sys
+from collections import defaultdict
 from math import floor
-from collections import Counter
-from nltk.corpus import stopwords
 
+import ijson
 
 json_file = sys.argv[1]
-out_file = sys.argv[2]
+json_ouput = sys.argv[2]
 number_of_articles = int(sys.argv[3])
-
 
 
 def split_dataset(data):
@@ -24,34 +20,38 @@ def split_dataset(data):
     return training, testing
 
 
-# remove digits, punctuation, and stopwords
-def remove_digit_punct_stopword(infile, outfile, lang):
-    set_stopword = set(stopwords.words(lang))
-    with open(outfile, 'w', encoding='UTF8') as f:
-        for line in open(infile, 'r', encoding='UTF8'):
-            # split into words
-            extract_words = line.split()
-            for word in extract_words:
-                filtered_word = re.sub('[^a-zöäüßA-ZÖÄÜ\s]', '', word)
-                if not filtered_word in set_stopword:
-                     if not filtered_word.isdigit():
-                        f.writelines(filtered_word + "\n")
+# remove triplets duplication created from stanford OpenIE
+def remove_duplicates(infile, outfile):
+    with open(outfile, 'w') as output:
+        with open(infile, 'r') as file:
+            trip = defaultdict()
+            for line in file:
+                ent1, rel, ent2 = line.split(',')
+                output.write(ent1 + ",")
+                output.write(rel + ",")
+                output.write(ent2)
+
+                trip[line] = 1
+
+            for triplet in trip:
+                output.write(triplet)
 
 
-def extract_most_frequent(infile, outfile):
-    with open(outfile, 'w', encoding= 'UTF8') as file:
-        with open(infile, "r", encoding= 'UTF8') as input:
-            count = Counter(line for line in input)
-            for word in count.most_common(2000):
-                file.writelines(word[0] + "\n")
+# lower case all the text for relation OpenIE
+def to_lower(infile, outfile):
+    with open(outfile, 'w') as output:
+        with open(infile, 'r') as inf:
+            for line in inf:
+                for word in line:
+                    word = word.lower()
+                    output.write(word)
 
 
-
-with open(out_file, 'w' , encoding= 'UTF-8') as output:
-    with open(json_file, 'r', encoding= 'UTF-8') as f:
-        objects = ijson.items(f, '2')
+with open(json_ouput, 'w') as output:
+    with open(json_file, 'r') as f:
+        objects = ijson.items(f, 'title')
         columns = list(objects)
         article_collection = columns[0].values()
-        for count in range(number_of_articles+1):
+        for count in range(number_of_articles + 1):
             for i in article_collection:
-                output.write(i)
+                output.write(i + "." + "\n")
