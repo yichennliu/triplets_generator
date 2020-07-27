@@ -4,7 +4,6 @@ import random
 import sys
 from collections import defaultdict
 from math import floor
-
 import ijson
 
 json_file = sys.argv[1]
@@ -19,25 +18,7 @@ def split_dataset(data):
     testing = data[split_id:]
     return training, testing
 
-
-# remove triplets duplication created from stanford OpenIE
-def remove_duplicates(infile, outfile):
-    with open(outfile, 'w') as output:
-        with open(infile, 'r') as file:
-            trip = defaultdict()
-            for line in file:
-                ent1, rel, ent2 = line.split(',')
-                output.write(ent1 + ",")
-                output.write(rel + ",")
-                output.write(ent2)
-
-                trip[line] = 1
-
-            for triplet in trip:
-                output.write(triplet)
-
-
-# lower case all the text for relation OpenIE
+# lower case all the text for stanford OpenIE
 def to_lower(infile, outfile):
     with open(outfile, 'w') as output:
         with open(infile, 'r') as inf:
@@ -49,9 +30,12 @@ def to_lower(infile, outfile):
 
 with open(json_ouput, 'w') as output:
     with open(json_file, 'r') as f:
-        objects = ijson.items(f, 'title')
+        objects = ijson.items(f, 'text')
         columns = list(objects)
         article_collection = columns[0].values()
         for count in range(number_of_articles + 1):
             for i in article_collection:
                 output.write(i + "." + "\n")
+
+
+to_lower("quantum_10_articles", "quantum_10_articles-lc")

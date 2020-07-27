@@ -58,3 +58,4 @@ with open(input_file, 'r') as input:
 
     extract_node(output_node_file, gephi_dict)
     extract_edge(output_edge_file, src_tgt_rel, gephi_dict)
+
