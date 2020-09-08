@@ -1,38 +1,46 @@
-# Rokin_Dev
+# Triplets Generation
 
-## Hello Developers!
+Extract triplets from domain specific unstructured texts using Stanford OpenIE. Approach used here is based on: [From unstructured text to knowledge graph](https://github.com/varun196/knowledge_graph_from_unstructured_text)
+Detailed information in documentation.
 
-### Welcome to Rokin :rocket:
+![Alt text](/home/yibsimo/PycharmProjects/Rokin_Dev/data/process.png?raw=true)
 
-"We revolutionize the Technology-Driven Innovation in companies"
+## Prerequisites
 
-### Developer Tips
+* Python 3.5 or later
+* [Stanford CoreNLP](https://stanfordnlp.github.io/CoreNLP/download.html)
+* [Gephi](https://gephi.org/users/download/) for visualization
+* Dependencies in requirements.txt
 
-:computer: Re-read code before opening a PR
+```
+pip install -r requirements.txt
+```
 
-:point_up: Ask for help when stuck
+## Steps
 
-:star: Help others who are stuck
+1. Extract articles from json file with data_extraction.py
 
-:punch: Take tasks that scare you
+2. Start Stanford CoreNLP server
 
-:mortar_board: There is always something to learn
+```
+cd stanford-corenlp-full-2015-12-09/
+java -mx4g -cp "*" edu.stanford.nlp.pipeline.StanfordCoreNLPServer
+```
 
-### Here are the set of instructions to be followed:
+3. Tag the named entities of the extracted text with stanford_ner.py
 
-	-	Create a branch of the repo with the name tag: RTDev_(YourName)
-	-	Do not directly edit on the master branch
-	-	Clone the repo to your local system
-	-	Make code edits on the respective branch assigned under yourname
-	-	Check twice before making any edits on the repository
-	-	Please give a clear description on the commits made
-  
-### Here are the links to essential softwares:
+4. Extract raw triplets with relation_extractor.py
 
-- Git/ GitBash : https://gitforwindows.org/
-- GitHub Desktop : https://desktop.github.com/ 
+5. Extract triplets with recognized named entities with create_structured_csv.py
 
-### Here are the links to make you familiar to GitHub
+6. Improve triplets with postprocessing.py
 
-- Getting familiar with git commands: https://github.com/joshnh/Git-Commands
-- Getting familiar with GitHub Desktop: https://help.github.com/en/desktop/getting-started-with-github-desktop
+7. Run stat_parser.py to avoid triplet duplication
+
+## Visualization with Gephi
+
+Create node and edge files and import them into Gephi
+
+```
+python3 gephi_knowledge_graph.py amount_of_triplets node_file.csv edge_file.csv
+```

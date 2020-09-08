@@ -1,15 +1,15 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+import glob
+import os
 import pickle
-import sys
 from nltk import sent_tokenize
 from pycorenlp import StanfordCoreNLP
 
-raw = sys.argv[1]
 
 corenlp = StanfordCoreNLP('http://localhost:9000')
 corenlp_properties = {
-    'annotators': 'tokenize, lemma, ner, parse',
+    'annotators': 'tokenize, lemma, depparse, ner',
     'outputFormat': 'json'
 }
 
@@ -23,19 +23,32 @@ def get_tagged_from_server(input_text):
     return tagged
 
 
-ner_to_dict = {}
+def create_pickle(infile, ner_dict):
 
-with open(raw, "r") as infile:
-    text = str(infile.read())
-    sentences = sent_tokenize(text)
-    for s in sentences:
-        end_tag = get_tagged_from_server(s)
-        for tup in end_tag:
-            print(tup)
-            ner_to_dict[tup[0]] = tup[1]
+    output_path = "./data/output/output_ner/"
 
-output_path = "./data/output/"
+    op_pickle_filename = output_path + "qc_ner_" + infile.split('/')[-1].split('.')[0] + ".pickle"
+    with open(op_pickle_filename, "wb") as f:
+        pickle.dump(ner_dict, f)
 
-op_pickle_filename = output_path + "named_entity_quantum_10_articles" + ".pickle"
-with open(op_pickle_filename, "wb") as f:
-    pickle.dump(ner_to_dict, f)
+
+if __name__ == "__main__":
+
+    ner_to_dict = {}
+    raw_files = []
+    for raw in glob.glob(os.getcwd() + "/data/raw/*.txt"):
+        raw_files.append(raw)
+
+    for rf in raw_files:
+        with open(rf, 'r') as ip:
+            text = str(ip.read())
+            sentences = sent_tokenize(text)
+            for s in sentences:
+                end_tag = get_tagged_from_server(s)
+                for tup in end_tag:
+                    print(tup)
+                    ner_to_dict[tup[0]] = tup[1]
+
+            create_pickle(rf, ner_to_dict)
+
+

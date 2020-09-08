@@ -5,8 +5,10 @@ import sys
 from collections import defaultdict
 
 input_file = sys.argv[1]
-output_node_file = sys.argv[2]
-output_edge_file = sys.argv[3]
+amount = int(sys.argv[2])  # amount of triplets for word graph
+output_path = "./data/triplets/"
+output_node_file = sys.argv[3]
+output_edge_file = sys.argv[4]
 
 
 def extract_node(outfile, gephi_dict):
@@ -44,18 +46,28 @@ gephi_dict = defaultdict(lambda: defaultdict(int))
 src_tgt_rel = defaultdict(str)
 
 with open(input_file, 'r') as input:
-    for line in input:
-        line = line.split(',')
-        source = line[0]
-        target = line[2]
-        relation = line[1]
-        ent_freq[source] += 1
-        ent_freq[target] += 1
-        src_tgt_rel[(source, target)] = relation
+    for count, line in enumerate(input, start=1):
+        # for line in input:
+        if count % amount == 0:
+            break
 
-    for index, (elm, freq) in enumerate(ent_freq.items()):
-        gephi_dict[elm][str(index)] += 1
+        else:
 
-    extract_node(output_node_file, gephi_dict)
-    extract_edge(output_edge_file, src_tgt_rel, gephi_dict)
+            # visualize only the triplets that have words from query
+            # query = ['scietists', 'researchers', 'physicists', 'ibm', 'google', 'technology']
 
+            line = line.split(',')
+            source = line[0].strip()
+            target = line[2].strip()
+            relation = line[1].strip()
+            # if source or target in query:
+            ent_freq[source] += 1
+            ent_freq[target] += 1
+            src_tgt_rel[(source, target)] = relation
+
+for index, (elm, freq) in enumerate(ent_freq.items()):
+    gephi_dict[elm][str(index)] += 1
+
+if __name__ == '__main__':
+    extract_node(output_path + output_node_file, gephi_dict)
+    extract_edge(output_path + output_edge_file, src_tgt_rel, gephi_dict)

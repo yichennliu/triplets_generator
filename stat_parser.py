@@ -1,89 +1,105 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import sys
-import nltk
-from collections import defaultdict
-import re
-from pycorenlp import StanfordCoreNLP
-import pickle
+import csv
 import os
-from nltk.tree import Tree
-from nltk.draw.tree import TreeViewstat_
+import sys
+from collections import defaultdict
 import numpy
+from nltk.tree import Tree
+from pycorenlp import StanfordCoreNLP
 
+output_path = "./data/output/postprocessed/parsed/"
 input = sys.argv[1]
-output = sys.argv[2]
-corenlp = StanfordCoreNLP('http://localhost:9000')
+output = output_path + sys.argv[2]
 
-with open(input) as infile:
+corenlp = StanfordCoreNLP('http://localhost:9000')
+chosen = defaultdict(str)
+
+with open(output, 'w') as op:
+
     relation = defaultdict(list)
 
-    for line in infile:
-        e1, r, e2 = line.split(', ')
-        relation[(e1, r)].append(e2)
+    with open(input) as infile:
+        reader = csv.reader(infile, delimiter=',')
+        for row in reader:
+            if (len(row) == 3):
+                e1 = row[0]
+                r = row[1]
+                e2 = row[2]
 
-    for (en1, rel), entity_list in relation.items():
-        parse_tree_prob = defaultdict(int)
-        rulesets = defaultdict(list)
-        lhs_freq = defaultdict(int)
-        rule_freq = defaultdict(lambda: defaultdict(int))
-        svo_gram = defaultdict(str)
+                relation[(e1, r)].append(e2)
 
-        for e in entity_list:
-            line = str(en1 + rel + e)
-            output = corenlp.annotate(line, properties={
-                'annotators': 'tokenize,ssplit,pos,depparse,parse',
-                'outputFormat': 'json'
-            })
+        for (en1, rel), entity_list in relation.items():
+            rulesets = defaultdict(list)
+            lhs_freq = defaultdict(int)
+            rule_freq = defaultdict(lambda: defaultdict(int))
+            svo_gram = defaultdict(lambda: defaultdict(str))
 
-            parsed = output['sentences'][0]['parse']
-            t = Tree.fromstring(str(parsed))
-            grammar = t.productions()
-            svo_gram[grammar] += line
-            rulesets[(en1, rel)].append(grammar)
-            for g in grammar:
-                lhs = g.lhs()
-                rhs = g.rhs()
-                lhs_freq[lhs] += 1
-                rule_freq[g][lhs] += 1
+            # parse the duplicated triplets with stanford parser
+            for e in entity_list:
+                line = str(en1 + rel + e)
+                output = corenlp.annotate(line, properties={
+                    'annotators': 'tokenize,ssplit,pos,parse',
+                    'outputFormat': 'json'
+                })
 
-        # print(rule_freq)
-        for (ent1, r), gram in rulesets.items():
-            best = 0
+                parsed = output['sentences'][0]['parse']
+                t = Tree.fromstring(str(parsed))
 
-            for gr in gram:
-                best_gram = str()
-                rp = []
-                for rule in gr:
-                    count_rule = sum(rule_freq[rule].values())
-                    for rul in rule_freq:
-                        for lh in rule_freq[rul]:
-                            print(lh)
-                            count_lhs = lhs_freq[lh]
-                            print(count_lhs)
-                            rule_prob = count_rule / count_lhs
-                            rp.append(rule_prob)
+                grammar = t.productions()
 
-                result = numpy.prod(rp)
-                if result > best:
-                    best = result
-                    best_gram = gr
+                # save the grammar rules into rulesets
+                svo_gram[str(grammar).strip('[]')][line] = (en1, rel, e)
+                rulesets[(en1, rel)].append(grammar)  # rulesets keys: subject and the relation as tuples
+                # values: all possible the grammars as a list with the same tuples
+                for g in grammar:
+                    lhs = g.lhs()
+                    rhs = g.rhs()
+                    lhs_freq[lhs] += 1  # calculate the frequency of left hand rules
+                    rule_freq[g][lhs] += 1  # calculate the frequency of left hand rules under the certain grammar
 
-    # for sent, analysis in parsed.items():
-    #     t = Tree.fromstring(str(analysis))
-    #     grammar = t.productions()
-    # for g in grammar:
-    #     print(g.lhs())
-    #     print(g.rhs())
+            for (ent1, r), gram in rulesets.items():
+                best = 0
 
-    # t.draw()
-    # for s in t.subtrees(lambda t: t.height() == 2):
-    #     print(s)
-    #     # # TreeView(t)._cframe.print_to_file('output.ps')
-    #     # # os.system('convert output.ps output.png')
-    #     print(analysis.split())
-    #     for i in analysis.split():
-    #        word = tuple()
+                for gr in gram:
+                    all_gram = defaultdict(
+                        lambda: 0.0)  # initialize the dictionary to save the probibilities of each analysis
+                    best_gram = str()
+                    print(best_gram)
+                    rp = []  # list for temporary saving of rule probabilities
+                    for rule in gr:
+                        count_rule = sum(rule_freq[rule].values())
+                        for rul in rule_freq:
+                            for lh in rule_freq[rul]:
+                                print(lh)
+                                count_lhs = lhs_freq[lh]
+                                print(count_lhs)
 
+                                rule_prob = count_rule / count_lhs
+                                rp.append(rule_prob)
 
+                    result = numpy.prod(rp)  # calculate the total probability of a grammar
+                    all_gram[str(grammar).strip('[]')] += result
+                    weight = result / sum(all_gram.values())
+
+                    # calculate weights and reweighting
+                    if weight > best:
+                        weight = result
+                        print(weight)
+                        best_gram = str(gr).strip('[]')
+
+                    # choose the sentence with the grammar that has the highest probability
+                    for best_gram in svo_gram:
+                        for candidate, tripl in svo_gram[best_gram].items():
+                            (e1, r, e2) = tripl
+                            print(candidate)
+                            print(tripl)
+                            chosen[(e1, r, e2)] += candidate
+
+        for c, v in chosen.items():
+            en1, r, en2 = c
+
+            op.write(en1 + ",")
+            op.write(r + ",")
+            op.write(en2 + "\n")
 

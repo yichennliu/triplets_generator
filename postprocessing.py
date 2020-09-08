@@ -1,91 +1,173 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+import csv
+import glob
+import json
+import os
 import sys
 from collections import defaultdict
-import nltk
-from nltk import word_tokenize
+from nltk import word_tokenize, pos_tag
 
-input = sys.argv[1]
-cleaned = sys.argv[2]
+keyword_list = open(sys.argv[1], 'r')  # json file of keywords
+keywords = json.load(keyword_list)
 
 
-# remove possible triplets duplication created from stanford OpenIE
-def remove_duplicates():
+def remove_type_labels(input):
     triplets = defaultdict(int)
-    with open(cleaned, 'w') as output:
-        with open(input, 'r') as infile:
 
-            for line in infile:
-                tp1, ent1, rel, tp2, ent2 = line.split(',')
-                triplets[(ent1, rel, ent2)] += 1
+    reader = csv.reader(input, delimiter=",")
+    next(reader, None)
+    for line in reader:
+        # print(line)
+        if len(line) == 5:
+            type1 = line[0]
+            ent1 = line[1].strip()
+            rel = line[2].strip()
+            type2 = line[3]
+            ent2 = line[4].strip()
+            triplets[(ent1, rel, ent2)] += 1
 
-            for e1, r, e2 in triplets:
-                output.write(e1 + ',')
-                output.write(r + ',')
-                output.write(e2)
+        if len(line) == 3:
+            ent1 = line[0].strip()
+            rel = line[1].strip()
+            ent2 = line[2].strip()
 
+            triplets[(ent1, rel, ent2)] += 1
 
-# put cleaned triplets into seed file
-def add_seed_triplets(input, output):
-    seed = defaultdict(list)
-    with open(output, 'w') as op:
-        with open(input, 'r')as inp:
-            for line in inp:
-                ent1, rel, ent2 = line.split(',')
-                seed[ent1].append((rel, ent2))
-
-        for s, comb_list in seed.items():
-            for tup in comb_list:
-                rel = tup[0]
-                e2 = tup[1]
-                op.write(s + ',')
-                op.write(rel + ',')
-                op.write(e2)
+    return triplets
 
 
-# remove grammatically incorrect relations
-def scan_relation():
-    result = defaultdict(int)
+def pos_tagging(elem):
+    elem_to_tag = word_tokenize(elem)
+    elem_tagged = pos_tag(elem_to_tag)
+    tagged_list = []
 
-    with open(cleaned, 'w') as op:
-        with open(input, 'r') as ip:
-            for line in ip:
-                _, rel, e2 = line.split(',')
-                verbs = ['MD', 'VB', 'VBD', 'VBP', 'VBZ']
-                pp = ['VBG', 'VBN', 'IN']
+    for e in elem_tagged:
+        tagged_list.append(e[1])
 
-                rel_to_tag = word_tokenize(rel)
-                rel_tagged = nltk.pos_tag(rel_to_tag)
-                rel_tagged_list = []
-                for r in rel_tagged:
-                    rel_tagged_list.append(r[1])
-
-                for t in range(len(rel_tagged_list) - 1):
-
-                    pos = rel_tagged_list[t]
-                    followed = rel_tagged_list[t + 1]
-                    if pos in verbs:
-                        result[line] += 1
-                    if pos == 'VBZ' and followed in pp:
-                        result[line] += 1
-
-                obj_to_tag = word_tokenize(e2)
-                obj_tagged = nltk.pos_tag(obj_to_tag)
-                obj_tagged_list = []
-
-                for o in obj_tagged:
-                    obj_tagged_list.append(o[1])
-
-                for i in range(len(obj_tagged_list) - 1):
-                    obj_pos = obj_tagged_list[i]
-                    followed = obj_tagged_list[i:]
-
-                    incorrect = ['VB', 'VBD', 'VBP', 'VBG', 'VBN', 'MD', 'VBZ']
-                    if obj_pos not in incorrect and followed != 'WDT':
-                        result[line] += 1
-
-        for r in result:
-            op.write(r)
+    return tagged_list
 
 
-scan_relation()
+# remove grammatically incorrect triplets
+def check_grammar(triplets):
+    e1_result = defaultdict(int)
+    rel_result = defaultdict(int)
+    final_result = defaultdict(int)
+
+    verbs = ['MD', 'VB', 'VBD', 'VBP', 'VBZ']
+    pp = ['VBG', 'VBN']
+    prep = ['IN']
+    adverb = ['RB', 'RBR', 'RBS', 'JJ']
+    pronouns = ['PRP', 'PRP$', 'DT']
+    nouns = ['NN', 'NNS', 'NNP', 'NNPS']
+
+    for elem in triplets:
+
+        (e1, rel, e2) = elem
+        e1_tagged_list = pos_tagging(e1)
+
+        if e1_tagged_list[0] not in pronouns and verbs and pronouns and adverb and pp and prep:
+            e1_result[(e1, rel, e2)] += 1
+
+    for trip in e1_result:
+
+        (subj, relation, object) = trip
+        rel_tagged_list = pos_tagging(relation)
+
+        for t in range(0, len(rel_tagged_list) - 1):
+
+            pos = rel_tagged_list[t]
+            n_1 = rel_tagged_list[t - 1]
+            followed = rel_tagged_list[t + 1]
+
+            if pos in verbs and n_1 not in adverb:
+                rel_result[(subj, relation, object)] += 1
+
+            if pos == 'VBZ' or 'VBN' and n_1 in verbs:
+                rel_result[(subj, relation, object)] += 1
+
+            if pos == 'VBZ' or 'VBD' and followed in pp:
+                rel_result[(subj, relation, object)] += 1
+
+    for obj in rel_result:
+
+        (s, v, o) = obj
+        e2_tagged_list = pos_tagging(o)
+
+        for i in range(0, len(e2_tagged_list) - 1):
+            obj_pos = e2_tagged_list[i]
+            followed = e2_tagged_list[i + 1]
+            last_pos = e2_tagged_list[-1]
+
+            incorrect = ['VB', 'VBD', 'VBP', 'VBG', 'VBN', 'MD', 'VBZ', 'WDT', 'IN']
+            if obj_pos and followed and last_pos not in incorrect:
+                final_result[(s, v, o)] += 1
+
+    return final_result
+
+
+# filter out the triplets that do not have certain keywords
+def match_keyword(result, keywords):
+    words = defaultdict(int)
+    matching_e1 = defaultdict(int)
+    matching_e2 = defaultdict(int)
+    combined_matching = defaultdict(int)  # triplets that have keywords both in subject and object
+
+    for articles in keywords:
+        for a in articles:
+            words[a] += 1
+
+    for word in words:
+
+        if len(word) > 1:
+            w = word.split()
+            for (e1, r, e2) in result:
+                m1 = all([k in e1 for k in w])
+                m2 = all([voc in e2 for voc in w])
+                if m1 == True:
+                    matching_e1[(e1, r, e2)] += 1
+                if m2 == True:
+                    matching_e2[(e1, r, e2)] += 1
+
+        else:
+
+            for (e1, r, e2) in result:
+                m1 = all([k in e1 for k in word])
+                m2 = all([voc in e2 for voc in word])
+                if m1 == True:
+                    matching_e1[(e1, r, e2)] += 1
+                if m2 == True:
+                    matching_e2[(e1, r, e2)] += 1
+
+    matching_set1 = set(matching_e1)
+    matching_set2 = set(matching_e2)
+
+    for trip in matching_set1.intersection(matching_set2):
+        combined_matching[trip] += matching_e2[trip]
+
+    return combined_matching
+
+
+def create_files(infile, result):
+    output_path = "./data/output/postprocessed/"
+    op_filename = output_path + "postp_" + infile.split('/')[-1].split('.')[0] + ".csv"
+    with open(op_filename, "w") as op:
+        for postp in result:
+            ent1, rel, ent2 = postp
+            op.write(ent1 + ',')
+            op.write(rel + ',')
+            op.write(ent2 + '\n')
+
+
+if __name__ == "__main__":
+
+    csv_files = []
+    for cs_file in glob.glob(os.getcwd() + "/data/output/output_trip_with_ner/*.csv"):
+        csv_files.append(cs_file)
+
+    for cs_file in csv_files:
+        with open(cs_file, 'r') as ip:
+            original = remove_type_labels(ip)
+            filtered_1 = check_grammar(original)
+            filtered_2 = match_keyword(filtered_1, keywords)
+            create_files(cs_file, filtered_2)
