@@ -51,7 +51,7 @@ with open(output, 'w') as op:
                 # save the grammar rules into rulesets
                 svo_gram[str(grammar).strip('[]')][line] = (en1, rel, e)
                 rulesets[(en1, rel)].append(grammar)  # rulesets keys: subject and the relation as tuples
-                # values: all possible the grammars as a list with the same tuples
+                # values: all possible grammars of the same tuples as a list
                 for g in grammar:
                     lhs = g.lhs()
                     rhs = g.rhs()
