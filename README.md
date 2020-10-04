@@ -36,6 +36,10 @@ java -mx4g -cp "*" edu.stanford.nlp.pipeline.StanfordCoreNLPServer
 
 7. Run **stat_parser.py** to avoid triplet duplication
 
+### main.py
+
+Performs all the steps mentioned above at once.
+
 ## Visualization with Gephi
 
 Create node and edge files and import them into Gephi

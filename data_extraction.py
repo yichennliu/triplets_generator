@@ -5,8 +5,8 @@ import ijson
 from nltk import sent_tokenize
 
 json_file = open(sys.argv[1], 'r')
-output_path = "./data/raw/"
-data_output = open(sys.argv[2], 'w')
+output_path = "./data/raw/" + sys.argv[2]
+data_output = open(output_path, 'w')
 number_of_articles = int(sys.argv[3])
 
 
