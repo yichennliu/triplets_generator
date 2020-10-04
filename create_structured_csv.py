@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 import glob
 import os
 import pickle
@@ -6,10 +8,11 @@ import pandas as pd
 
 def main():
     # create a list of pickle file names
+    print("start")
     pickles = []
-    for file in glob.glob(os.getcwd() + "/data/output_ner/qc_ner_87_articles.pickle"):
+    for file in glob.glob(os.getcwd() + "/data/output/output_ner/qc_ner_87_articles.pickle"):
         pickles.append(file)
-
+    print("processing")
     # load each pickle file and create the resultant csv file
     for file in pickles:
         with open(file, 'rb') as f:
@@ -26,6 +29,7 @@ def main():
             file_name += '_'
             file_name += str
             print(file_name)
+
 
         df = pd.read_csv(os.getcwd() + "/data/output/output_openIE/qc_87_articles-out.csv", error_bad_lines=False)
 
@@ -48,7 +52,7 @@ def main():
                     triplet.add(_)
         # convert the pandas dataframe into csv
         processed_pd = pd.DataFrame(list(triplet), columns=['Type', 'Entity 1', 'Relationship', 'Type', 'Entity2'])
-        processed_pd.to_csv("/data/output/output_trip_with_ner/" + file.split("/")[-1].split(".")[0] + '.csv',
+        processed_pd.to_csv("./data/output/output_trip_with_ner/" + file.split("/")[-1].split(".")[0] + '.csv',
                             encoding='utf-8', index=False)
 
         print("Processed " + file.split("/")[-1])
